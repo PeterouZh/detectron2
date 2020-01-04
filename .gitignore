@@ -1,3 +1,7 @@
+.vscode/
+detectron2-exp/
+submodule/
+
 # output dir
 output
 instant_test_output
