@@ -2,5 +2,5 @@
 	path = submodule/template_lib
 	url = https://github.com/PeterouZh/template_lib.git
 [submodule "detectron2-exp"]
-	path = detectron2-exp
+	path = detectron2_exp
 	url = https://github.com/PeterouZh/detectron2-exp.git

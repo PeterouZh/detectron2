@@ -37,6 +37,9 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+from detectron2_exp.TOOLS.modelarts_hook import ModelArtsHook
+from template_lib.utils.config import setup_logger_and_redirect_stdout
+
 
 class Trainer(DefaultTrainer):
     """
@@ -45,6 +48,16 @@ class Trainer(DefaultTrainer):
     are working on a new research project. In that case you can use the cleaner
     "SimpleTrainer", or write your own training loop.
     """
+    def __init__(self, cfg, myargs):
+        self.myargs = myargs
+        self.myconfig = myargs.config
+        super(Trainer, self).__init__(cfg)
+
+    def build_hooks(self):
+        ret = super(Trainer, self).build_hooks()
+        if comm.is_main_process():
+            ret.append(ModelArtsHook(period=self.myconfig.modelarts_period))
+        return ret
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
@@ -116,13 +129,20 @@ def setup(args):
     cfg = get_cfg()
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+
+    if 'opts_private' in args:
+        cfg.merge_from_list(args.opts_private)
+
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
 
 
-def main(args):
+def main(args, myargs):
     cfg = setup(args)
+
+    if args.num_gpus > 1 and comm.is_main_process():
+        setup_logger_and_redirect_stdout(myargs.args.logfile, myargs)
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
@@ -140,7 +160,7 @@ def main(args):
     If you'd like to do anything fancier than the standard training logic,
     consider writing your own training loop or subclassing the trainer.
     """
-    trainer = Trainer(cfg)
+    trainer = Trainer(cfg, myargs)
     trainer.resume_or_load(resume=args.resume)
     if cfg.TEST.AUG.ENABLED:
         trainer.register_hooks(
