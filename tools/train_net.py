@@ -40,6 +40,7 @@ from detectron2.modeling import GeneralizedRCNNWithTTA
 from detectron2_exp.TOOLS.modelarts_hook import ModelArtsHook
 from template_lib.utils.config import setup_logger_and_redirect_stdout
 from detectron2_exp.TOOLS import dense_resnet
+from detectron2_exp.TOOLS import bdd100k_dataset
 
 
 class Trainer(DefaultTrainer):
