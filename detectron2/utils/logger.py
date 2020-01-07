@@ -53,7 +53,7 @@ def setup_logger(
         abbrev_name = "d2" if name == "detectron2" else name
 
     plain_formatter = logging.Formatter(
-        "[%(asctime)s] %(name)s %(levelname)s: %(message)s", datefmt="%m/%d %H:%M:%S"
+        "[%(asctime)s] %(name)s:%(lineno)s %(levelname)s: %(message)s", datefmt="%m/%d %H:%M:%S"
     )
     # stdout logging: master only
     if distributed_rank == 0:
@@ -61,7 +61,7 @@ def setup_logger(
         ch.setLevel(logging.DEBUG)
         if color:
             formatter = _ColorfulFormatter(
-                colored("[%(asctime)s %(name)s]: ", "green") + "%(message)s",
+                colored("[%(asctime)s %(name)s:%(lineno)s]: ", "green") + "%(message)s",
                 datefmt="%m/%d %H:%M:%S",
                 root_name=name,
                 abbrev_name=str(abbrev_name),
