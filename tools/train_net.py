@@ -58,9 +58,11 @@ class Trainer(DefaultTrainer):
         self.myconfig = myargs.config
         super(Trainer, self).__init__(cfg)
         # init
-        init_type = getattr(self.myconfig, 'init_type', None)
-        weights_init_func = functools.partial(self.weights_init, init_type=init_type)
-        self.model.apply(weights_init_func)
+        if comm.is_main_process():
+            init_type = getattr(self.myconfig, 'init_type', None)
+            weights_init_func = functools.partial(self.weights_init, init_type=init_type)
+            self.model.apply(weights_init_func)
+        comm.synchronize()
         pass
 
     @staticmethod
