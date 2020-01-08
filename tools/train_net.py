@@ -18,7 +18,9 @@ You may want to write your own script with your datasets and other customization
 import logging
 import os
 from collections import OrderedDict
+import functools
 import torch
+from torch import nn
 
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
@@ -55,6 +57,27 @@ class Trainer(DefaultTrainer):
         self.myargs = myargs
         self.myconfig = myargs.config
         super(Trainer, self).__init__(cfg)
+        # init
+        init_type = getattr(self.myconfig, 'init_type', None)
+        weights_init_func = functools.partial(self.weights_init, init_type=init_type)
+        self.model.apply(weights_init_func)
+        pass
+
+    @staticmethod
+    def weights_init(m, init_type=None):
+        classname = m.__class__.__name__
+        if classname.find('Conv2d') != -1 or classname.find('Linear') != -1:
+            if init_type == 'normal':
+                nn.init.normal_(m.weight.data, 0.0, 0.02)
+            elif init_type == 'orth':
+                nn.init.orthogonal_(m.weight.data)
+            elif init_type == 'xavier_uniform':
+                nn.init.xavier_uniform(m.weight.data, 1.)
+            else:
+                return
+        elif classname.find('BatchNorm2d') != -1:
+            nn.init.normal_(m.weight.data, 1.0, 0.02)
+            nn.init.constant_(m.bias.data, 0.0)
 
     def build_hooks(self):
         ret = super(Trainer, self).build_hooks()
