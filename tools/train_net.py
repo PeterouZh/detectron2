@@ -38,6 +38,7 @@ from detectron2.evaluation import (
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
 from detectron2_exp.TOOLS.modelarts_hook import ModelArtsHook
+from detectron2_exp.TOOLS.save2text_hook import MetricTextHook
 from template_lib.utils.config import setup_logger_and_redirect_stdout
 from detectron2_exp.TOOLS import dense_resnet
 from detectron2_exp.TOOLS import bdd100k_dataset
@@ -58,6 +59,7 @@ class Trainer(DefaultTrainer):
     def build_hooks(self):
         ret = super(Trainer, self).build_hooks()
         if comm.is_main_process():
+            ret.append(MetricTextHook(period=self.cfg.TEST.EVAL_PERIOD))
             ret.append(ModelArtsHook(period=self.myconfig.modelarts_period))
         return ret
 
