@@ -37,6 +37,10 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+from template_lib.utils.detection2_utils import D2Utils
+
+from detectron2_exp.TOOLS import modelarts_hook, save2text_hook
+
 
 class Trainer(DefaultTrainer):
     """
@@ -109,21 +113,29 @@ class Trainer(DefaultTrainer):
         res = OrderedDict({k + "_TTA": v for k, v in res.items()})
         return res
 
+    def __init__(self, cfg, myargs):
+      super(Trainer, self).__init__(cfg=cfg)
+      self.myargs = myargs
 
-def setup(args):
+
+def setup(args, config):
     """
     Create configs and perform basic setups.
     """
     cfg = get_cfg()
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+
+    cfg = D2Utils.cfg_merge_from_easydict(cfg, config)
+
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
 
 
-def main(args):
-    cfg = setup(args)
+def main(args, myargs):
+    cfg = setup(args, myargs.config)
+    myargs = D2Utils.setup_myargs_for_multiple_processing(myargs)
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
@@ -141,23 +153,48 @@ def main(args):
     If you'd like to do anything fancier than the standard training logic,
     consider writing your own training loop or subclassing the trainer.
     """
-    trainer = Trainer(cfg)
+    trainer = Trainer(cfg, myargs)
     trainer.resume_or_load(resume=args.resume)
     if cfg.TEST.AUG.ENABLED:
         trainer.register_hooks(
             [hooks.EvalHook(0, lambda: trainer.test_with_TTA(cfg, trainer.model))]
         )
+    if comm.is_main_process():
+        trainer.register_hooks(
+            [save2text_hook.EvalResultsHook(period=trainer.cfg.TEST.EVAL_PERIOD),
+             modelarts_hook.ModelArtsHook(period=eval(trainer.cfg.modelarts_period)),
+             ])
     return trainer.train()
 
 
+def run(argv_str=None):
+  from template_lib.utils.config import parse_args_and_setup_myargs, config2args
+  from template_lib.utils.modelarts_utils import prepare_dataset
+
+  run_script = os.path.relpath(__file__, os.getcwd())
+  args1, myargs, _ = parse_args_and_setup_myargs(argv_str, run_script=run_script, start_tb=False)
+  myargs.args = args1
+  myargs.config = getattr(myargs.config, args1.command)
+
+  prepare_dataset(myargs.config.dataset)
+
+  args = default_argument_parser().parse_args([])
+
+  args = config2args(myargs.config.args, args)
+  args.opts += ['OUTPUT_DIR', args1.outdir + '/detectron2']
+  print("Command Line Args:", args)
+
+  myargs = D2Utils.unset_myargs_for_multiple_processing(myargs, num_gpus=args.num_gpus)
+
+  launch(
+      main,
+      args.num_gpus,
+      num_machines=args.num_machines,
+      machine_rank=args.machine_rank,
+      dist_url=args.dist_url,
+      args=(args, myargs),
+  )
+
+
 if __name__ == "__main__":
-    args = default_argument_parser().parse_args()
-    print("Command Line Args:", args)
-    launch(
-        main,
-        args.num_gpus,
-        num_machines=args.num_machines,
-        machine_rank=args.machine_rank,
-        dist_url=args.dist_url,
-        args=(args,),
-    )
+    run()
