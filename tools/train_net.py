@@ -40,7 +40,7 @@ from detectron2.modeling import GeneralizedRCNNWithTTA
 from template_lib.utils.detection2_utils import D2Utils
 
 from detectron2_exp.TOOLS import modelarts_hook, save2text_hook
-from detectron2_exp.TOOLS import multi_label_roi_head
+from detectron2_exp.TOOLS import multi_label_roi_head, entropy_rpn
 
 
 class Trainer(DefaultTrainer):
