@@ -39,6 +39,9 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+from template_lib.v2.config import update_parser_defaults_from_yaml, global_cfg, \
+    setup_logger_global_cfg_global_textlogger
+from template_lib.d2.utils import D2Utils
 
 class Trainer(DefaultTrainer):
     """
@@ -129,7 +132,13 @@ def setup(args):
 
 
 def main(args):
+    setup_logger_global_cfg_global_textlogger(args, tl_textdir=args.tl_textdir)
     cfg = setup(args)
+    cfg = D2Utils.cfg_merge_from_easydict(cfg, global_cfg)
+    if comm.is_main_process():
+        path = os.path.join(cfg.OUTPUT_DIR, "config.yaml")
+        with open(path, "w") as f:
+            f.write(cfg.dump())
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
@@ -158,7 +167,10 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = default_argument_parser().parse_args()
+    parser = default_argument_parser()
+    update_parser_defaults_from_yaml(parser)
+    args = parser.parse_args()
+
     print("Command Line Args:", args)
     launch(
         main,

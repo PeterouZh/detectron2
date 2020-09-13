@@ -13,6 +13,9 @@ from detectron2.utils.logger import setup_logger
 
 from predictor import VisualizationDemo
 
+from template_lib.v2.config import update_parser_defaults_from_yaml, global_cfg
+from template_lib.d2.utils import D2Utils
+
 # constants
 WINDOW_NAME = "COCO detections"
 
@@ -69,12 +72,18 @@ def get_parser():
 
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
-    args = get_parser().parse_args()
+
+    parser = get_parser()
+    update_parser_defaults_from_yaml(parser)
+
+    args = parser.parse_args()
+
     setup_logger(name="fvcore")
     logger = setup_logger()
     logger.info("Arguments: " + str(args))
 
     cfg = setup_cfg(args)
+    cfg = D2Utils.cfg_merge_from_easydict(cfg, global_cfg)
 
     demo = VisualizationDemo(cfg)
 
